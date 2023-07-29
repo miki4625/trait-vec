@@ -1,8 +1,22 @@
 [package]
 name = "trait-vec"
 version = "0.1.0"
+authors = ["miki4625 <miki4625@gmail.com>"]
+description = "A Vec with purpose to store objects that impl same Trait, stored objects are in contiguous manner"
+homepage = "https://github.com/miki4625/trait-vec"
+repository = "https://github.com/miki4625/trait-vec"
+readme = "README.md"
+keywords = ["heterogeneous", "trait", "vec", "vector", "contiguous"]
+categories = ["data-structures"]
+license = "CC0-1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[[bench]]
+name = "benchmark"
+harness = false

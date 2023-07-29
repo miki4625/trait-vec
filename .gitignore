@@ -1,4 +1,4 @@
 /target
-/.idea/
+/.idea
 /Cargo.lock
 /TraitVec.iml
