@@ -1,11 +1,10 @@
-use std::marker::{PhantomData, Unsize};
+use std::marker::Unsize;
 use std::ops::{CoerceUnsized, Deref, DerefMut, DispatchFromDyn};
 use std::ptr::{NonNull, Pointee};
 use std::{fmt, ptr};
-use std::slice::Iter;
 
 pub struct OffsetDynView<T: ?Sized> {
-    offset: isize,
+    pub(crate) offset: isize,
     ptr_metadata: <T as Pointee>::Metadata,
 }
 
@@ -19,6 +18,14 @@ impl<T: ?Sized> Clone for OffsetDynView<T> {
 }
 
 impl<'a, T: ?Sized + 'a> OffsetDynView<T> {
+    unsafe fn offset_ptr(&self, valid_ptr: *const ()) -> *const () {
+        (valid_ptr as *const u8).offset(-self.offset) as *const ()
+    }
+
+    unsafe fn offset_ptr_mut(&self, valid_ptr: *mut ()) -> *mut () {
+        (valid_ptr as *mut u8).offset(-self.offset) as *mut ()
+    }
+
     pub fn from_ptr(offset: isize, invalid_ptr: *const T) -> Self {
         Self {
             offset,
@@ -28,11 +35,16 @@ impl<'a, T: ?Sized + 'a> OffsetDynView<T> {
 
     #[inline]
     pub unsafe fn as_view(&self, valid_ptr: *const ()) -> DynViewPtr<T> {
-        let data_ptr = (valid_ptr as *const u8).offset(-self.offset);
-        DynViewPtr::<T>::from_ptr_unchecked(ptr::from_raw_parts(
-            data_ptr as *const (),
-            self.ptr_metadata,
-        ))
+        let data_ptr = self.offset_ptr(valid_ptr);
+        let t_ptr = ptr::from_raw_parts::<T>(data_ptr, self.ptr_metadata) as *const T;
+        DynViewPtr::<T>::from_ptr_unchecked(t_ptr)
+    }
+
+    #[inline]
+    pub unsafe fn as_mut_view(&self, valid_ptr: *mut ()) -> DynViewPtr<T> {
+        let data_ptr = self.offset_ptr_mut(valid_ptr);
+        let t_ptr = ptr::from_raw_parts_mut::<T>(data_ptr, self.ptr_metadata);
+        DynViewPtr::<T>::from_mut_ptr_unchecked(t_ptr)
     }
 }
 
@@ -43,8 +55,6 @@ where
 {
     pointer: NonNull<T>,
 }
-
-
 
 impl<'a, T: ?Sized + Unsize<U>, U: ?Sized> CoerceUnsized<DynViewPtr<U>> for DynViewPtr<T> {}
 
@@ -63,9 +73,7 @@ impl<'a, T: ?Sized> DynViewPtr<T> {
 
     #[inline]
     fn from_inner(pointer: NonNull<T>) -> Self {
-        Self {
-            pointer,
-        }
+        Self { pointer }
     }
 }
 
@@ -79,6 +87,11 @@ impl<'a, T: ?Sized + 'a> DynViewPtr<T> {
             _marker: PhantomData,
         }
     }*/
+
+    #[inline]
+    pub unsafe fn from_mut_ptr_unchecked(ptr: *mut T) -> DynViewPtr<T> {
+        unsafe { DynViewPtr::<T>::from_inner(NonNull::new_unchecked(ptr)) }
+    }
 
     #[inline]
     pub unsafe fn from_ptr_unchecked(ptr: *const T) -> DynViewPtr<T> {
